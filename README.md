@@ -68,7 +68,7 @@ It will:
 - run on every push to `main`
 - install Node dependencies
 - build Vite assets
-- upload the project to `/home/logicsoft/panel` over SFTP
+- sync the project to `/home/logicsoft/panel` over FTP/FTPS
 - run `composer update` on the server
 - run Laravel migrate and cache commands on the server
 
@@ -82,7 +82,7 @@ It will:
 
 Add this repository secret before using the workflow:
 
-- `DEPLOY_PASSWORD`: SSH password for `logicsoft@49.143.249.38`
+- `DEPLOY_PASSWORD`: password for `logicsoft@49.143.249.38`
 
 ### Notes
 
@@ -90,3 +90,6 @@ Add this repository secret before using the workflow:
 - It skips `.git`, `.github`, `node_modules`, and test files during deploy.
 - It also avoids deleting runtime cache/log/session files inside `storage`.
 - The server must already have working `php` and `composer` commands available for the remote deploy step.
+- The file upload now uses `SamKirkland/FTP-Deploy-Action` with `DEPLOY_PASSWORD`.
+- The remote command step still uses SSH with the same `DEPLOY_PASSWORD` secret.
+- If your host requires FTPS instead of FTP, change `DEPLOY_PROTOCOL` in the workflow from `ftp` to `ftps`, and update `DEPLOY_PORT` if needed.

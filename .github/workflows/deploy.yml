@@ -14,9 +14,11 @@ jobs:
       DEPLOY_HOST: 49.143.249.38
       DEPLOY_USER: logicsoft
       DEPLOY_PATH: /home/logicsoft/panel
+      DEPLOY_PROTOCOL: ftp
+      DEPLOY_PORT: 21
 
     steps:
-      - name: Checkout code
+      - name: Get latest code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -31,43 +33,38 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Install deployment tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass lftp
-
-      - name: Trust deploy host
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-
-      - name: Upload project with SFTP
-        env:
-          SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
-        run: |
-          lftp -u "$DEPLOY_USER","$SSHPASS" sftp://"$DEPLOY_HOST" <<EOF
-          set sftp:auto-confirm yes
-          set ssl:verify-certificate no
-          mkdir -p $DEPLOY_PATH
-          mirror -R \
-            --delete \
-            --verbose \
-            --exclude-glob .git/ \
-            --exclude-glob .github/ \
-            --exclude-glob node_modules/ \
-            --exclude-glob tests/ \
-            --exclude-glob .env \
-            --exclude-glob storage/logs/ \
-            --exclude-glob storage/framework/cache/ \
-            --exclude-glob storage/framework/sessions/ \
-            --exclude-glob storage/framework/views/ \
-            --exclude-glob bootstrap/cache/*.php \
-            ./ $DEPLOY_PATH
-          bye
-          EOF
+      - name: Sync files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          protocol: ${{ env.DEPLOY_PROTOCOL }}
+          port: ${{ env.DEPLOY_PORT }}
+          local-dir: ./
+          server-dir: /home/logicsoft/panel/
+          log-level: standard
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/tests/**
+            **/.env
+            **/storage/logs/**
+            **/storage/framework/cache/**
+            **/storage/framework/sessions/**
+            **/storage/framework/views/**
+            **/bootstrap/cache/*.php
 
       - name: Run remote Laravel commands
         env:
           SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
           sshpass -e ssh "$DEPLOY_USER@$DEPLOY_HOST" <<'EOF'
           set -e
           cd /home/logicsoft/panel
