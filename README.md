@@ -66,10 +66,10 @@ This repository includes a CI/CD workflow at `.github/workflows/deploy.yml`.
 It will:
 
 - run on every push to `main`
-- install Composer dependencies
 - install Node dependencies
 - build Vite assets
-- sync the project to `/home/logicsoft/panel`
+- upload the project to `/home/logicsoft/panel` over SFTP
+- run `composer update` on the server
 - run Laravel migrate and cache commands on the server
 
 ### Server target
@@ -89,3 +89,4 @@ Add this repository secret before using the workflow:
 - The workflow preserves the server `.env` file.
 - It skips `.git`, `.github`, `node_modules`, and test files during deploy.
 - It also avoids deleting runtime cache/log/session files inside `storage`.
+- The server must already have working `php` and `composer` commands available for the remote deploy step.

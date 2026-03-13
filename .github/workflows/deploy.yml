@@ -19,21 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, dom, fileinfo, mysql, sqlite3
-          coverage: none
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-
-      - name: Install Composer dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader
 
       - name: Install Node dependencies
         run: npm ci
@@ -42,30 +32,37 @@ jobs:
         run: npm run build
 
       - name: Install deployment tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass rsync
+        run: sudo apt-get update && sudo apt-get install -y sshpass lftp
 
       - name: Trust deploy host
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-      - name: Sync project to server
+      - name: Upload project with SFTP
         env:
           SSHPASS: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
-          sshpass -e rsync -az --delete \
-            --exclude ".env" \
-            --exclude ".git" \
-            --exclude ".github" \
-            --exclude "node_modules" \
-            --exclude "tests" \
-            --exclude "storage/logs/*" \
-            --exclude "storage/framework/cache/*" \
-            --exclude "storage/framework/sessions/*" \
-            --exclude "storage/framework/views/*" \
-            --exclude "bootstrap/cache/*.php" \
-            --rsync-path="mkdir -p $DEPLOY_PATH && rsync" \
-            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+          lftp -u "$DEPLOY_USER","$SSHPASS" sftp://"$DEPLOY_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set ssl:verify-certificate no
+          mkdir -p $DEPLOY_PATH
+          mirror -R \
+            --delete \
+            --verbose \
+            --exclude-glob .git/ \
+            --exclude-glob .github/ \
+            --exclude-glob node_modules/ \
+            --exclude-glob tests/ \
+            --exclude-glob .env \
+            --exclude-glob storage/logs/ \
+            --exclude-glob storage/framework/cache/ \
+            --exclude-glob storage/framework/sessions/ \
+            --exclude-glob storage/framework/views/ \
+            --exclude-glob bootstrap/cache/*.php \
+            ./ $DEPLOY_PATH
+          bye
+          EOF
 
       - name: Run remote Laravel commands
         env:
@@ -79,6 +76,7 @@ jobs:
           mkdir -p storage/framework/views
           mkdir -p storage/logs
           mkdir -p bootstrap/cache
+          composer update --no-interaction --prefer-dist --optimize-autoloader
           php artisan migrate --force
           php artisan config:clear
           php artisan cache:clear
