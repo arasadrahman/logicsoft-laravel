@@ -58,3 +58,34 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 # logicsoft-laravel
+
+## GitHub Actions deploy
+
+This repository includes a CI/CD workflow at `.github/workflows/deploy.yml`.
+
+It will:
+
+- run on every push to `main`
+- install Composer dependencies
+- install Node dependencies
+- build Vite assets
+- sync the project to `/home/logicsoft/panel`
+- run Laravel migrate and cache commands on the server
+
+### Server target
+
+- host: `49.143.249.38`
+- user: `logicsoft`
+- path: `/home/logicsoft/panel`
+
+### Required GitHub secret
+
+Add this repository secret before using the workflow:
+
+- `DEPLOY_PASSWORD`: SSH password for `logicsoft@49.143.249.38`
+
+### Notes
+
+- The workflow preserves the server `.env` file.
+- It skips `.git`, `.github`, `node_modules`, and test files during deploy.
+- It also avoids deleting runtime cache/log/session files inside `storage`.
